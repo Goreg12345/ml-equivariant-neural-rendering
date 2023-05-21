@@ -34,6 +34,7 @@ model = NeuralRenderer(
     channels_2d=config["channels_2d"],
     strides_2d=config["strides_2d"],
     channels_3d=config["channels_3d"],
+    temporal_channels=config["temporal_channels"],
     strides_3d=config["strides_3d"],
     num_channels_inv_projection=config["num_channels_inv_projection"],
     num_channels_projection=config["num_channels_projection"],

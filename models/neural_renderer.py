@@ -41,7 +41,7 @@ class NeuralRenderer(nn.Module):
         renderer.
     """
     def __init__(self, img_shape, channels_2d, strides_2d, channels_3d,
-                 strides_3d, num_channels_inv_projection, num_channels_projection,
+                 strides_3d, num_channels_inv_projection, num_channels_projection, temporal_channels,
                  mode='bilinear'):
         super(NeuralRenderer, self).__init__()
         self.img_shape = img_shape
@@ -52,6 +52,7 @@ class NeuralRenderer(nn.Module):
         self.num_channels_projection = num_channels_projection
         self.num_channels_inv_projection = num_channels_inv_projection
         self.mode = mode
+        self.temporal_channels = temporal_channels
 
         # Initialize layers
 
@@ -66,7 +67,7 @@ class NeuralRenderer(nn.Module):
 
         # Transform 3D inverse projection into a scene representation
         self.inv_transform_3d = ResNet3d(self.inv_projection.output_shape,
-                                         channels_3d, strides_3d)
+                                         channels_3d, strides_3d, temporal_channels=temporal_channels)
         # Add rotation layer
         self.rotation_layer = Rotate3d(self.mode)
 
@@ -119,7 +120,7 @@ class NeuralRenderer(nn.Module):
         # Map 3D features to scene representation
         scene = self.inv_transform_3d(features_3d)
         # Ensure scene is spherical
-        return self.spherical_mask(scene)
+        return scene
 
     def rotate(self, scene, rotation_matrix):
         """Rotates scene by rotation matrix.
@@ -174,14 +175,34 @@ class NeuralRenderer(nn.Module):
         params = batch["render_params"]
         azimuth = params["azimuth"].to(device)
         elevation = params["elevation"].to(device)
-
-        # Infer scenes from images
-        scenes = self.inverse_render(imgs)
+        temporal = params["temporal"].to(device).long()  # convert to long since we use it as index
 
         # Rotate scenes so that for every pair of rendered images, the 1st
         # one will be reconstructed as the 2nd and then 2nd will be
         # reconstructed as the 1st
         swapped_idx = get_swapped_indices(azimuth.shape[0])
+
+        # Infer scenes from images
+        scenes = self.inverse_render(imgs)
+
+        # reshape to (batch_size, temporal, channels, depth, height, width)
+        scenes = scenes.reshape(-1, self.temporal_channels, int(scenes.shape[1] / self.temporal_channels), *scenes.shape[2:])
+
+        target_timestep = temporal[swapped_idx] + int(self.temporal_channels / 2) - temporal
+
+        # take the first temporal dimension
+        # temporal.long()
+        scenes = scenes[torch.arange(scenes.shape[0]), target_timestep, ...]  # [torch.randperm(16)]
+        # reshape to (batch_size, channels, depth, height, width) is already done automatically
+
+        scenes = self.spherical_mask(scenes)
+
+        # TODO: for every pair of image, calculate how many temporal dimensions to shift the first image forth and
+        # the second image back.
+
+        # TODO: for every image, take the correct temporal dimension out of the scene representation
+
+        # TODO: flatten if necessary, then after do the rotation normally
 
         # Each pair of indices in the azimuth vector corresponds to the same
         # scene at two different angles. Therefore performing a pairwise swap,
@@ -272,7 +293,27 @@ def load_model(filename):
         filename (string): Path where model was saved.
     """
     model_dict = torch.load(filename, map_location="cpu")
-    config = model_dict["config"]
+    config = {
+  "id": "temporal_debug",
+  "path_to_data": "../data/temporal_debug/temporal",
+  "path_to_test_data": "../data/temporal_debug/temporal",
+  "multi_gpu": True,
+  "batch_size": 64,
+  "lr": 2e-4,
+  "epochs": 1000,
+  "loss_type": "l2",
+  "ssim_loss_weight": 0.05,
+  "save_freq": 1,
+  "img_shape": [3, 128, 128],
+  "channels_2d": [64, 64, 128, 128, 128, 128, 256, 256, 128, 128, 128],
+  "strides_2d": [1, 1, 2, 1, 2, 1, 2, 1, -2, 1, 1],
+  "channels_3d": [32, 32, 128, 128, 128, 2, 2, 2],
+  "strides_3d": [1, 1, 2, 1, 1, -2, 1, 1],
+  "temporal_channels": 40,
+  "num_channels_projection": [512, 256, 256],
+  "num_channels_inv_projection": [256, 512, 1024],
+  "mode": "bilinear"
+}
     # Initialize a model based on config
     model = NeuralRenderer(
         img_shape=config["img_shape"],
@@ -280,6 +321,7 @@ def load_model(filename):
         strides_2d=config["strides_2d"],
         channels_3d=config["channels_3d"],
         strides_3d=config["strides_3d"],
+        temporal_channels=config["temporal_channels"],
         num_channels_inv_projection=config["num_channels_inv_projection"],
         num_channels_projection=config["num_channels_projection"],
         mode=config["mode"]

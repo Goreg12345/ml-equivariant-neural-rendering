@@ -4,6 +4,8 @@ import torch.nn as nn
 from models.neural_renderer import get_swapped_indices
 from pytorch_msssim import SSIM
 from torchvision.utils import save_image
+# tqdm
+from tqdm import tqdm
 
 
 class Trainer():
@@ -78,7 +80,7 @@ class Trainer():
             save_image(rendered.cpu(),
                        save_dir + "/imgs_gen_{}.png".format(str(0).zfill(3)), nrow=4)
 
-        for epoch in range(epochs):
+        for epoch in tqdm(range(epochs)):
             print("\nEpoch {}".format(epoch + 1))
             self._train_epoch(dataloader)
             # Update epoch loss history with mean loss over epoch

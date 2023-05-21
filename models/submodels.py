@@ -136,7 +136,7 @@ class ResNet3d(nn.Module):
         layer.
     """
     def __init__(self, input_shape, channels, strides, final_conv_channels=0,
-                 filter_multipliers=(1, 1), add_groupnorm=True):
+                 filter_multipliers=(1, 1), add_groupnorm=True, temporal_channels=1):
         super(ResNet3d, self).__init__()
         assert len(channels) ==  len(strides), "Length of channels tuple is {} and length of strides tuple is {} but they should be equal".format(len(channels), len(strides))
         self.input_shape = input_shape
@@ -144,6 +144,7 @@ class ResNet3d(nn.Module):
         self.strides = strides
         self.filter_multipliers = filter_multipliers
         self.add_groupnorm = add_groupnorm
+        self.temporal_channels = temporal_channels
 
         # Calculate output_shape
         output_channels, output_depth, output_height, output_width = input_shape
@@ -160,7 +161,7 @@ class ResNet3d(nn.Module):
                 output_height *= 2
                 output_width *= 2
 
-        self.output_shape = (channels[-1], output_depth, output_height, output_width)
+        self.output_shape = (channels[-1] , output_depth, output_height, output_width)
 
         # Build layers
         # First layer to increase number of channels before applying residual
@@ -171,7 +172,16 @@ class ResNet3d(nn.Module):
         ]
         in_channels = channels[0]
         multiplier1x1, multiplier3x3 = filter_multipliers
+        temporal_layer_start = len(channels) - 3  # the last Conv.T is the third-last layer, there we introduce the temporal stuff
+        cur_layer_num = 0
+        temporal_multiplier = 1
         for out_channels, stride in zip(channels, strides):
+            # if we are in the temporal layer, we need to add the temporal channels
+            if cur_layer_num >= temporal_layer_start:
+                temporal_multiplier = temporal_channels
+                out_channels *= temporal_multiplier
+            cur_layer_num += 1
+
             if stride == 1:
                 forward_layers.append(
                     ResBlock3d(in_channels,
@@ -198,7 +208,7 @@ class ResNet3d(nn.Module):
 
         if final_conv_channels:
             forward_layers.append(
-                nn.Conv3d(in_channels, final_conv_channels, kernel_size=1,
+                nn.Conv3d(in_channels, final_conv_channels, kernel_size=1,  # TODO: alter final_conv_channels
                           stride=1, padding=0)
             )
 

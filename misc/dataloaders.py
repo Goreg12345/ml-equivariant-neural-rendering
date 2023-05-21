@@ -29,7 +29,7 @@ def scene_render_dataloader(path_to_data='chairs-train', batch_size=16,
     sampler = RandomPairSampler(dataset)
 
     return DataLoader(dataset, batch_size=batch_size, sampler=sampler,
-                      drop_last=True)
+                      drop_last=True, num_workers=0)
 
 
 def scene_render_dataset(path_to_data='chairs-train', img_size=(3, 128, 128),
