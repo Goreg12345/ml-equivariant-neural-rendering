@@ -93,7 +93,7 @@ The figures below exhibit the original object in Blender, the overview of the re
 
 Blender Object | Training set | Validation set | Test set
 :-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
-<img src='imgs/Blender.png' width='240' height ='240' />  | <img src='imgs/full_train_dataset.gif' width='240' height ='240' />  | <img src='imgs/full_val_dataset.gif' width='240' height ='240' />  |  <img src='imgs/full_test_dataset.gif' width='240' height ='240' /> 
+<img src='imgs/Blender.png' width='200' height ='200' />  | <img src='imgs/full_train_dataset.gif' width='200' height ='200' />  | <img src='imgs/full_val_dataset.gif' width='200' height ='200' />  |  <img src='imgs/full_test_dataset.gif' width='200' height ='200' /> 
 
 
 
@@ -139,7 +139,7 @@ To infer the scene representation from a single image the image is rendered into
 What if we render all representations for a given image? We would expect that for t \< 10, we see images that are gradually straighter, and for t \> 10, we should see images that are gradually more bent. We also expect that neighboring images look similar, and that no object is rotated. In the figure below, we see that images are rendered correctly, and that images of neighboring timesteps look similar. Note that the representation at t=0 was not trained because a difference of -10 was not present in the dataset. The input image of the example below was taken at the greatest bend. This means that As you can see in the image underneath at timestep 0 the object is not rendered correctly. This occurs because a temporal difference was not present for timestep 0. Therefor the model cannot learn it. The other timesteps show a good understanding of how the model would change over time going backwards or forwards in time.
 
 <p align='center'>
-    <img src='imgs/timesteps_rendered.png' width='330' height ='330'/>
+    <img src='imgs/timesteps_rendered.png' height ='330'/>
 </p>
 
 ### Interpolation between temporal timesteps
