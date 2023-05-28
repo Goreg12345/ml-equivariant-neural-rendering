@@ -1,0 +1,155 @@
+import bpy
+import math
+import os
+import json
+import numpy as np
+
+# Name of the blender object you created
+object_name = "Cube"
+
+# Folders for the train, test and validation set
+output_dir_train = "/Users/fabian/Pictures/temporal/temporal-train/"
+output_dir_val = "/Users/fabian/Pictures/temporal/temporal-val/"
+output_dir_test = "/Users/fabian/Pictures/temporal/temporal-test/"
+
+# Select the object with the given name
+subject = bpy.data.objects.get(object_name)
+
+# Parameter for creating enough frames
+rotation_steps = 5
+
+# Change the rotation of the object to it's original
+subject.rotation_euler = (0, 0, 0)
+
+#Specify the Modifier used and select it
+deform_modifier_name = "SimpleDeform"
+deform_modifier = subject.modifiers.get(deform_modifier_name)
+
+# The amount of temporal timesteps and amount of images created
+timesteps = 20
+num_images = 200
+
+# Initiate the dictionary to keep track of the azimuth and elevation angle
+angle_dict ={}
+
+# Lists of which timesteps go in which dataset.
+train_timestep_list = [0, 1, 2, 3, 4, 6, 7, 8, 11, 12, 13, 14, 15, 17, 18, 19]
+val_timestep_list = [5, 10]
+test_timestep_list = [9, 16]
+
+# Select the camera object
+camera = bpy.data.objects['Camera']
+
+# Set the radius to the object
+radius = 25
+
+# Start the first image as 0
+file_name = 0
+
+# Function that generates the sine wave
+def generate_sine_wave(amplitude, frequency, phase_shift, num_samples):
+    wave = []
+    for i in range(num_samples):
+        t = i / float(num_samples)
+        value = (amplitude/2) * (math.sin(2 * math.pi * frequency * t + phase_shift) + 1)
+        wave.append(value)
+    return wave
+
+# Sinewave parameters
+amplitude = 140  # Maximum value of the wave
+frequency = 1   # Frequency of the wave (in cycles per sample)
+phase_shift = -math.pi / 2 # Phase shift of the wave (in radians)
+num_samples = 20  # Number of samples in the wave
+
+# Set the specific values at the desired timesteps
+sine_wave = generate_sine_wave(amplitude, frequency, phase_shift, num_samples)
+
+
+if subject is not None:
+    # Set the rotation mode
+    camera.rotation_mode = 'XYZ'
+    
+    # Set the start frame and end frame for the animation
+    bpy.context.scene.frame_start = 0
+    bpy.context.scene.frame_end = (rotation_steps ** 2) * timesteps
+    
+    # Loop through the timesteps and set the output directory to the right directory
+    for index_t in range(0, timesteps):
+        if index_t in train_timestep_list:
+            output_dir = output_dir_train
+        if index_t in val_timestep_list:
+            output_dir = output_dir_val
+        if index_t in test_timestep_list:
+            output_dir = output_dir_test
+        
+        # Loop through the amount of images
+        for frame in range(0, num_images):
+            
+            # Set the frame and randomly generate a azimuth angle
+            bpy.context.scene.frame_set(frame)
+            azimuth_temp_angle = np.random.uniform(0, 360)
+            azimuth_radians = math.radians(azimuth_temp_angle)
+                
+            # Randomly generate an elevation angle
+            elevation_temp_angle = np.random.uniform(-90, 90)
+            elevation_radians = math.radians(elevation_temp_angle)
+        
+            # Calculate the X, Y and Z coordinate from these angles with the radius
+            x = radius * math.cos(elevation_radians) * math.cos(azimuth_radians)
+            y = radius * math.cos(elevation_radians) * math.sin(azimuth_radians)
+            z = radius * math.sin(elevation_radians)
+            
+            # Set the camera to this location and add a keyframe      
+            camera.location = (x, y, z)
+            camera.keyframe_insert(data_path="location", frame= frame)
+            
+            # Make the camera point to the centre and add this to the current keyframe
+            camera.rotation_euler = camera.location.to_track_quat('Z', 'Y').to_euler()
+            camera.keyframe_insert(data_path="rotation_euler", frame=frame)
+            
+            # Generate the deform angle with the sine function and also add it to the keyframe
+            deform_modifier.angle = math.radians(sine_wave[index_t])            
+            deform_modifier.keyframe_insert(data_path="angle", frame=frame)
+            
+            # The next code is useful if you want to change the color of the object depending on it's movement
+#            material = subject.data.materials[0]
+#            material.use_nodes = True
+#            if index_t > 0 and index_t < 6:
+#                material.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.0, 1.0, 0.0, 1.0)
+#                material.node_tree.nodes["Principled BSDF"].inputs["Base Color"].keyframe_insert(data_path="default_value", frame=frame)
+#            if index_t > 5 and index_t < 16:
+#                material.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (1.0, 0.0, 0.0, 1.0)
+#                material.node_tree.nodes["Principled BSDF"].inputs["Base Color"].keyframe_insert(data_path="default_value", frame=frame)
+#            if index_t > 15:
+#                material.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.0, 1.0, 0.0, 1.0)
+#                material.node_tree.nodes["Principled BSDF"].inputs["Base Color"].keyframe_insert(data_path="default_value", frame=frame)
+            
+            # Save the azimuth angle, elevation angle and timestep in the dict with the same name as the image
+            angle_dict['{:0>5}'.format(str(file_name))] = {'azimuth': azimuth_temp_angle, 'elevation': elevation_temp_angle, 'temporal': index_t}
+            
+            # Set the render filepath and Render
+            bpy.context.scene.render.filepath = os.path.join(output_dir, '{:0>5}'.format(str(file_name)))
+            bpy.ops.render.render(write_still=True, use_viewport=True)
+            
+            file_name += 1
+    
+    # Slice the dictionary into multiple parts to add to the different datasets (hardcoded)
+    keys_to_slice = list(angle_dict.keys())[0:1000] + list(angle_dict.keys())[1200:1800] + list(angle_dict.keys())[2200:3200] + list(angle_dict.keys())[3400:4000]
+    sliced_dict = {key: angle_dict[key] for key in keys_to_slice}    
+    with open('{}/render_params.json'.format(output_dir_train), 'w') as fp:
+        json.dump(sliced_dict, fp)
+        
+    keys_to_slice = list(angle_dict.keys())[1000:1200] + list(angle_dict.keys())[2000:2200]
+    sliced_dict = {key: angle_dict[key] for key in keys_to_slice}    
+    with open('{}/render_params.json'.format(output_dir_val), 'w') as fp:
+        json.dump(sliced_dict, fp)
+        
+    keys_to_slice = list(angle_dict.keys())[1800:2000] + list(angle_dict.keys())[3200:3400]
+    sliced_dict = {key: angle_dict[key] for key in keys_to_slice}    
+    with open('{}/render_params.json'.format(output_dir_test), 'w') as fp:
+        json.dump(sliced_dict, fp)
+        
+    angle_dict = {}
+
+else:
+    print(f"Object '{object_name}' not found in the scene.")
