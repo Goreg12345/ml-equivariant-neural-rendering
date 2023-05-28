@@ -58,7 +58,7 @@ With this extension an attempt is made to apply an estimation of the **group act
 
 However, inspired by the lifting correlation implemented in group equivariant deep learning, our model’s approach can be described as inventive. Rather than attempting to to **explicitly** capture these transformations, the model learns to **implicitly** capture the possible deformation over time via the encoder. As mentioned earlier, inspired by lifting correlation, a third dimension in the scene representation is created to account for different time steps. The model learns the change over time for the temporal dimension in the latent space. The capacity of our model to cope with transformations that are not readily described aligns with the more complicated, real-world scenarios where transformations might not fall under classical geometric transformations.
 
-### Related work(to be added)
+### Related work
 In the paper ["Geometry processing with Neural Fields"](https://papers.nips.cc/paper/2021/file/bd686fd640be98efaae0091fa301e613-Paper.pdf) research was done to see whether objects could be deformed using neural fields. This paper inspired the idea of deforming an object including a temporal aspect. In this paper they show that some of the most challenging geometry processing tasks, such as deformation and filtering, can be done with neural fields. Which would indicate that deforming the object over time would be feasible for our paper. 
 
 ## Strengths
@@ -93,7 +93,7 @@ The figures below exhibit the original object in Blender, the overview of the re
 
 Blender Object | Training set | Validation set | Test set
 :-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
-<img src='imgs/Blender.png' width='200' height ='200' />  | <img src='imgs/full_train_dataset.gif' width='200' height ='200' />  | <img src='imgs/full_val_dataset.gif' width='200' height ='200' />  |  <img src='imgs/full_test_dataset.gif' width='200' height ='200' /> 
+<img src='imgs/Blender.png' width='150' height ='150' />  | <img src='imgs/full_train_dataset.gif' width='150' height ='150' />  | <img src='imgs/full_val_dataset.gif' width='150' height ='150' />  |  <img src='imgs/full_test_dataset.gif' width='150' height ='150' /> 
 
 
 
